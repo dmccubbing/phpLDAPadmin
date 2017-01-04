@@ -2116,6 +2116,8 @@ function password_types() {
 		'smd5'=>'smd5',
 		'ssha'=>'ssha',
 		'sha512'=>'sha512',
+		'sha256crypt'=>'sha256crypt',
+		'sha512crypt'=>'sha512crypt',
 	);
 }
 
@@ -2124,7 +2126,8 @@ function password_types() {
  *
  * @param string The password to hash in clear text.
  * @param string Standard LDAP encryption type which must be one of
- *        crypt, ext_des, md5crypt, blowfish, md5, sha, smd5, ssha, sha512, or clear.
+ *        crypt, ext_des, md5crypt, blowfish, md5, sha, smd5, ssha, sha512,
+ *        sha256crypt, sha512crypt, or clear.
  * @return string The hashed password.
  */
 function pla_password_hash($password_clear,$enc_type) {
@@ -2224,6 +2227,20 @@ function pla_password_hash($password_clear,$enc_type) {
 			} else {
 				error(_('Your PHP install doest not have the openssl_digest() or base64_encode() function. Cannot do SHA512 hashes. '),'error','index.php');
 			}
+
+			break;
+
+		case 'sha256crypt':
+			if (! defined('CRYPT_SHA256') || CRYPT_SHA256 == 0)
+				error(_('Your system crypt library does not support sha256crypt encryption.'),'error','index.php');
+			$new_value = sprintf('{CRYPT}%s',crypt($password_clear,'$5$'.random_salt(8)));
+
+			break;
+
+		case 'sha512crypt':
+			if (! defined('CRYPT_SHA512') || CRYPT_SHA512 == 0)
+				error(_('Your system crypt library does not support sha512crypt encryption.'),'error','index.php');
+			$new_value = sprintf('{CRYPT}%s',crypt($password_clear,'$6$'.random_salt(8)));
 
 			break;
 
@@ -2567,7 +2584,7 @@ function dn_unescape($dn) {
 		foreach ($dn as $key => $rdn)
 			$a[$key] = preg_replace_callback('/\\\([0-9A-Fa-f]{2})/',
 				function ($r) {
-					return "''.chr(hexdec('$r[1]')).''";
+					return chr(hexdec($r[1]));
 				},
 				$rdn
 			);
@@ -2577,7 +2594,7 @@ function dn_unescape($dn) {
 	} else {
 		return preg_replace_callback('/\\\([0-9A-Fa-f]{2})/',
 			function ($r) {
-				return "''.chr(hexdec('$r[1]')).''";
+				return chr(hexdec($r[1]));
 			},
 			$dn
 		);
@@ -2614,12 +2631,7 @@ function get_href($type,$extra_info='') {
 		case 'forum':
 			return sprintf('%s/mailarchive/forum.php?forum_name=%s',$sf,$forum_id);
 		case 'logo':
-			if (! isset($_SERVER['HTTPS']) || strtolower($_SERVER['HTTPS']) != 'on')
-				$proto = 'http';
-			else
-				$proto = 'https';
-
-			return isset($_SESSION) && ! $_SESSION[APPCONFIG]->getValue('appearance','remoteurls') ? '' : sprintf('%s://sflogo.sourceforge.net/sflogo.php?group_id=%s&amp;type=10',$proto,$group_id);
+			return isset($_SESSION) && ! $_SESSION[APPCONFIG]->getValue('appearance','remoteurls') ? '' : sprintf('//sflogo.sourceforge.net/sflogo.php?group_id=%s&amp;type=10',$group_id);
 		case 'sf':
 			return sprintf('%s/projects/phpldapadmin',$sf);
 		case 'web':
